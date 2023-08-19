@@ -8,5 +8,9 @@
 
 # Reminders:
 1. Sometimes (background, color1, color2) are too close to linear that a color may be wrongly classified to be in another one. Check the cluster image to fix in case that happens.
-1. Sometimes the configuration color is too close to the background that a minimap color pair may correspond to more than 1 colors. Manually fix the result if that happens.
-1. As the width of the minimap is fixed (e.g. 90), line breaks needs to be moved afterwards if long lines exist in the original source code.
+1. Sometimes the configuration color is too close to the background that a minimap color pair may correspond to more than 1 possible characters. Manually fix the result if that happens.
+1. As the width of the minimap is fixed (e.g. 90), line breaks needs to be removed afterwards if long lines exist in the original source code.
+
+# License description:
+- Code created by TWY (@t-wy), all rights reserved.
+- To fork or use or modify the snippets in other projects, keep the attribution (at the same place in the source code or in apparent places) and remind others that do the same to follow so.
