@@ -13,6 +13,7 @@ if filename == "":
 # Sometimes (background, color1, color2) are too close to linear that a color may be wrongly classified to be in another one. Check the cluster image to fix in case that happens.
 # Sometimes the configuration color is too close to the background that a minimap color pair may correspond to more than 1 possible characters. Manually fix the result if that happens.
 # As the width of the minimap is fixed (e.g. 90), line breaks needs to be removed afterwards if long lines exist in the original source code.
+# Non-ascii characters are not supported for recovery, expect gibberish characters and long running time if they exist.
 
 # Code created by TWY (@t-wy), all rights reserved.
 # License description:
