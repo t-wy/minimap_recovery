@@ -1,5 +1,5 @@
 # Instructions:
-# This code only works for minimaps that each character contributes to 1x2 pixels of the minimap
+# This code only works for minimaps that each character contributes to 1x2 pixels of the minimap.
 # Crop the minimap image beforehand to make sure the top left of the image corrspond to the first character at the first line and the height is a multiple of 2.
 # Enter the filename
 filename = input("Filename: ").rstrip(".png") # input file is filename + ".png" at the same directory
@@ -9,7 +9,7 @@ if filename == "":
 # The recovered source is located at filename + "_recovered.txt"
 # The image showing the clusters is located at filename + "_cluster.png" that colors used in vscode configuration can be extracted, and characters that are wrongly classified into another group can be manually identified.
 
-# Reminder:
+# Reminders:
 # Sometimes (background, color1, color2) are too close to linear that a color may be wrongly classified to be in another one. Check the cluster image to fix in case that happens.
 # Sometimes the configuration color is too close to the background that a minimap color pair may correspond to more than 1 colors. Manually fix the result if that happens.
 # As the width of the minimap is fixed (e.g. 90), line breaks needs to be moved afterwards if long lines exist in the original source code.
