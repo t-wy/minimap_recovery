@@ -17,7 +17,7 @@ _Normal font weight is expected. If light font weight is used, change the line "
 1. As the width of the minimap is fixed (e.g. 90), line breaks needs to be removed afterwards if long lines exist in the original source code.
 1. Non-ascii characters are not supported for recovery, expect gibberish characters and long running time if they exist.
 1. Some components may appear in minimap that are not characters (e.g. color preview). Expect a placeholder to be manually removed.
-1. Lines with warning(s) / error(s) may have a different background color. It is recommended to separate them to another file for recovery.
+1. Lines that are currently being edited, and lines with warning(s) / error(s) may have a different background color. It is recommended to separate them to another file for recovery.
 
 # License description:
 - Code created by TWY (@t-wy), all rights reserved.
