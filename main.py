@@ -43,14 +43,11 @@ colors, count = np.unique(arr.reshape((-1, 3)), axis=0, return_counts=True)
 background = tuple(colors[np.argmax(count)])
 print("Background Color:", format_color(*background))
 
-def sort_key(x):
-    return sorted(x, reverse=True)
-
 all_pairs = set()
 for y in range(arr.shape[0]):
     for x in range(arr.shape[1]):
         all_pairs.add((tuple(arr[y, x, 0]), tuple(arr[y, x, 1])))
-all_pairs = sorted(all_pairs, key=sort_key, reverse=True)
+all_pairs = list(all_pairs)
 
 def get_theta_range(offset1, offset2):
     # angle range such that some vector from background can reach points that can be rounded to (offset1, offset2)
@@ -183,10 +180,10 @@ for pair in all_pairs:
     clusters2.append(clusters3)
     clusters = clusters2
 
-cluster_num = {}
-for index, cluster in enumerate(clusters):
-    for i in cluster:
-        cluster_num[i] = index
+# cluster_num = {}
+# for index, cluster in enumerate(clusters):
+#     for i in cluster:
+#         cluster_num[i] = index
 
 # isolate all comment block pairs (may get a better result if used)
 # hash_color = None
@@ -329,6 +326,7 @@ def exhaust(all_pairs):
             # Probably all characters here are non-ascii
             add_answers({pair: "?" for pair in left_out}, left_out, background)
 
+print([len(x) for x in clusters])
 
 for cluster in clusters:
     # check if all pairs are compatible
