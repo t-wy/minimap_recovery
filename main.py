@@ -35,13 +35,13 @@ from tqdm import tqdm
 arr = np.array(Image.open(filename + ".png"))[:,:,:3]
 arr = arr.reshape((arr.shape[0] >> 1, 2, arr.shape[1], 3)).transpose((0, 2, 1, 3)).astype(int)
 
-def output_color(r, g, b):
-    print("#{0:02x}{1:02x}{2:02x} ({0}, {1}, {2})".format(r, g, b))
+def format_color(r, g, b):
+    return "#{0:02x}{1:02x}{2:02x} ({0}, {1}, {2})".format(r, g, b)
 
 # find background color: assume the mode is the background
 colors, count = np.unique(arr.reshape((-1, 3)), axis=0, return_counts=True)
 background = tuple(colors[np.argmax(count)])
-print("Background Color:", output_color(*background))
+print("Background Color:", format_color(*background))
 
 def sort_key(x):
     return sorted(x, reverse=True)
@@ -256,7 +256,7 @@ def get_score(test_map, cluster):
     return sum(pair in test_map for pair in cluster)
 
 def output_choice(r, g, b):
-    print("Chosen: " + output_color(r, g, b))
+    print("Chosen: " + format_color(r, g, b))
 
 def exhaust(all_pairs):
     # do a lazy search to reduce the exhaust complexity
