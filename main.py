@@ -1,7 +1,7 @@
 # Instructions:
 # This code only works for minimaps that each character contributes to 1x2 pixels of the minimap.
 # Normal font weight is expected. If light font weight is used, change the line "normal = minimap * 12 // 15" to "normal = minimap * 50 // 60". Exhaust both options if both font weights exist in the source.
-# Crop the minimap image beforehand to make sure the top left of the image corrspond to the first character at the first line and the height is a multiple of 2.
+# Crop the minimap image beforehand to make sure that the top left of the image corrspond to the first character at the first line and the height is a multiple of 2.
 # Enter the filename
 filename = input("Filename: ").rstrip(".png") # input file is filename + ".png" at the same directory
 if filename == "":
