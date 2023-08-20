@@ -326,8 +326,6 @@ def exhaust(all_pairs):
             # Probably all characters here are non-ascii
             add_answers({pair: "?" for pair in left_out}, left_out, background)
 
-print([len(x) for x in clusters])
-
 for cluster in clusters:
     # check if all pairs are compatible
     flag = True
