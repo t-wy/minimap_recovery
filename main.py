@@ -1,5 +1,6 @@
 # Instructions:
 # This code only works for minimaps that each character contributes to 1x2 pixels of the minimap.
+# Normal font weight is expected. If light font weight is used, change the line "normal = minimap * 12 // 15" to "normal = minimap * 50 // 60". Exhaust both options if both font weights exist in the source.
 # Crop the minimap image beforehand to make sure the top left of the image corrspond to the first character at the first line and the height is a multiple of 2.
 # Enter the filename
 filename = input("Filename: ").rstrip(".png") # input file is filename + ".png" at the same directory
@@ -14,13 +15,15 @@ if filename == "":
 # Sometimes the configuration color is too close to the background that a minimap color pair may correspond to more than 1 possible characters. Manually fix the result if that happens.
 # As the width of the minimap is fixed (e.g. 90), line breaks needs to be removed afterwards if long lines exist in the original source code.
 # Non-ascii characters are not supported for recovery, expect gibberish characters and long running time if they exist.
+# Some components may appear in minimap that are not characters (e.g. color preview). Expect a placeholder to be manually removed.
 
 # Code created by TWY (@t-wy), all rights reserved.
 # License description:
-# To fork or use or modify the snippets in other projects, keep the attribution (here or in apparent places) and remind others that do the same to follow so.
+# To fork, use, or modify the snippets in other projects, keep the attribution (here or in apparent places) and remind others that do the same to follow so.
 
 import numpy as np
 from PIL import Image
+from tqdm import tqdm
 
 arr = np.array(Image.open(filename + ".png"))[:,:,:3]
 arr = arr.reshape((arr.shape[0] >> 1, 2, arr.shape[1], 3)).transpose((0, 2, 1, 3)).astype(int)
@@ -185,6 +188,8 @@ for index, cluster in enumerate(clusters):
 #         if x == 0 and key == (background, background):
 #             is_comment = False # ignore indented comments for now
 #             break
+#         # if the comment character is more than 1 characters
+#         # (e.g. // something), then change the below 1 to 2.
 #         if x == 1 and key != (background, background):
 #             is_comment = False # ignore shebang for now
 #             break
@@ -243,6 +248,8 @@ def get_score(test_map, cluster):
 
 def exhaust(all_pairs):
     # do a lazy search to reduce the exhaust complexity
+    failed_candidates = set()
+    candidates_cache = {}
     while True:
         left_out = [pair for pair in all_pairs if pair not in answer]
         if len(left_out) == 0:
@@ -275,19 +282,39 @@ def exhaust(all_pairs):
             add_answers(test_map, left_out, (r, g, b))
         else:
             # greedily choose a color that matches the most of remaining pairs
+            print("Exhausting...")
             scores = []
-            for pair in left_out:
-                channel_cand = []
-                for i in range(3):
-                    channel_cand.append(find_candidates([(pair[0][i], pair[1][i])], i))
-                for r, g, b in list_product(*channel_cand):
-                    test_map = gen_test_map(r, g, b)
-                    scores.append((sum(pair in test_map for pair in left_out), (r, g, b)))
+            candidates = set()
+            print("Finding candidates...")
+            for pair in tqdm(left_out):
+                if pair in candidates_cache:
+                    candidates |= candidates_cache[pair]
+                else:
+                    channel_cand = []
+                    for i in range(3):
+                        channel_cand.append(find_candidates([(pair[0][i], pair[1][i])], i))
+                    candidates_cache[pair] = set(list_product(*channel_cand))
+                    candidates |= candidates_cache[pair]
+            print("Evaluating candidates...")
+            candidates -= set(failed_candidates)
+            for r, g, b in tqdm(list(candidates)):
+                test_map = gen_test_map(r, g, b)
+                scores.append((sum(pair in test_map for pair in left_out), (r, g, b)))
             scores.sort(reverse=True)
-            score, (r, g, b) = scores[0]
-            print("Chosen: #{:02x}{:02x}{:02x} {:.2f}%".format(r, g, b, score * 100 / (len(left_out))))
-            test_map = gen_test_map(r, g, b)
-            add_answers(test_map, left_out, (r, g, b))
+            for score, (r, g, b) in reversed(scores):
+                if score > 0:
+                    break
+                failed_candidates.add((r, g, b))
+            if len(scores) and scores[0][0] > 0:
+                score, (r, g, b) = scores[0]
+                print("Chosen: #{:02x}{:02x}{:02x} {:.2f}%".format(r, g, b, score * 100 / (len(left_out))))
+                test_map = gen_test_map(r, g, b)
+                add_answers(test_map, left_out, (r, g, b))
+            else:
+                print("Non-ascii characters detected!")
+                # Probably all characters here are non-ascii
+                add_answers({pair: "?" for pair in left_out}, left_out, background)
+
 
 for cluster in clusters:
     # check if all pairs are compatible
