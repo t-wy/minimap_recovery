@@ -6,14 +6,14 @@ A tool to recover the text in a VSCode minimap image (i.e. the overview of the s
 _Normal font weight is expected. If light font weight is used, change the line "normal = minimap * 12 // 15" to "normal = minimap * 50 // 60". Exhaust both options if both font weights exist in the source._
 
 1. Crop the minimap image beforehand to make sure that the top left of the image corrspond to the first character at the first line and the height is a multiple of 2.
-1. Enter the filename
+1. Enter the path of the image as the first argument or from the console input
 1. Wait for the script to finish
 1. The recovered source is located at filename + "_recovered.txt"
 1. The image showing the clusters is located at filename + "_cluster.png" that colors used in vscode configuration can be extracted, and characters that are wrongly classified into another group can be manually identified.
 
 # Reminders:
 1. Sometimes (background, color1, color2) are too close to linear that a color may be wrongly classified to be in another one. Check the cluster image to fix in case that happens.
-1. Sometimes the configuration color is too close to the background that a minimap color pair may correspond to more than 1 possible characters. Manually fix the result if that happens.
+1. Sometimes the configuration color is too close to the background that a minimap color pair may correspond to more than 1 possible characters (especially for bracket pairs like `()`, `[]`, `{}`, `<>` which intensities differ too small). Manually fix the result if that happens.
 1. As the width of the minimap is fixed (e.g. 90), line breaks needs to be removed afterwards if long lines exist in the original source code.
 1. Non-ascii characters are not supported for recovery, expect gibberish characters and long running time if they exist.
 1. Some components may appear in minimap that are not characters (e.g. color preview). Expect a placeholder to be manually removed.
