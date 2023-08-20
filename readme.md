@@ -13,7 +13,8 @@ A tool to recover the text in a VSCode minimap image (i.e. the overview of the s
 1. Sometimes the configuration color is too close to the background that a minimap color pair may correspond to more than 1 possible characters. Manually fix the result if that happens.
 1. As the width of the minimap is fixed (e.g. 90), line breaks needs to be removed afterwards if long lines exist in the original source code.
 1. Non-ascii characters are not supported for recovery, expect gibberish characters and long running time if they exist.
+1. Some components may appear in minimap that are not characters (e.g. color preview). Expect a placeholder to be manually removed.
 
 # License description:
 - Code created by TWY (@t-wy), all rights reserved.
-- To fork or use or modify the snippets in other projects, keep the attribution (at the same place in the source code or in apparent places) and remind others that do the same to follow so.
+- To fork, use, or modify the snippets in other projects, keep the attribution (at the same place in the source code or in apparent places) and remind others that do the same to follow so.
