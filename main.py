@@ -1,7 +1,7 @@
 # Instructions:
 # This code only works for minimaps that each character contributes to 1x2 pixels of the minimap.
 # Normal font weight is expected. If light font weight is used, change the line "normal = minimap * 12 // 15" to "normal = minimap * 50 // 60". Exhaust both options if both font weights exist in the source.
-# Crop the minimap image beforehand to make sure that the top left of the image corrspond to the first character at the first line and the height is a multiple of 2.
+# Crop the minimap image beforehand to make sure that the top left of the image correspond to the first character at the first line and the height is a multiple of 2.
 # Enter the path of the image as the first argument or from the console input
 import sys
 if len(sys.argv) == 2:
@@ -236,7 +236,7 @@ def list_product(*x):
                 yield (i, ) + j
 
 # do strict clustering
-# Notice that clique problem is NP-complete, while means the below method may return sub-optimal results
+# Notice that clique problem is NP-complete, which means the below method may return sub-optimal results
 answer = {}
 refer = {}
 

@@ -1,7 +1,7 @@
 <html>
     <head>
         <meta charset="utf-8">
-        <title>Minimap Recovery</title>
+        <title>VSCode / VSCodium Minimap Recovery</title>
         <meta name="description" content="A tool to recover the source code from the minimap preview of VSCode / VSCodium.">   
         <link rel="canonical" href="https://twy.name/Tools/minimap/">
         <style>
@@ -72,7 +72,7 @@
         </style>
     </head>
     <body>
-        <h1>Minimap Recovery</h1>
+        <h1>VSCode / VSCodium Minimap Recovery</h1>
         <a href="https://github.com/t-wy/minimap_recovery">Repository</a>
         <div id="dragarea">
             Drop Here, or <input type="file" id="drag_input" accept="image/png" />
@@ -90,9 +90,9 @@
         <div>
             This tool only works for minimaps that each character contributes to 1x2 pixels of the minimap.<br>
             Normal font weight is expected.<br>
-            Crop the minimap image beforehand to make sure that the top left of the image corrspond to the first character at the first line and the height is a multiple of 2.<br>
+            Crop the minimap image beforehand to make sure that the top left of the image correspond to the first character at the first line and the height is a multiple of 2.<br>
             <br>
-            <b>Reminders:</b>
+            <b>Reminders:</b><br>
             Sometimes (background, color1, color2) are too close to linear that a color may be wrongly classified to be in another one. Check the cluster image to fix in case that happens.<br>
             Sometimes the configuration color is too close to the background that a minimap color pair may correspond to more than 1 possible characters (especially for bracket pairs like (), [], {}, <> which intensities differ too small). Manually fix the result if that happens.<br>
             As the width of the minimap is fixed (e.g. 90), line breaks needs to be removed afterwards if long lines exist in the original source code.<br>
@@ -390,7 +390,7 @@
                     }
 
                     // do strict clustering
-                    // Notice that clique problem is NP-complete, while means the below method may return sub-optimal results
+                    // Notice that clique problem is NP-complete, which means the below method may return sub-optimal results
                     var answer = {};
                     var refer = {};
 
