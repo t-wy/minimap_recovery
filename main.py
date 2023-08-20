@@ -2,8 +2,14 @@
 # This code only works for minimaps that each character contributes to 1x2 pixels of the minimap.
 # Normal font weight is expected. If light font weight is used, change the line "normal = minimap * 12 // 15" to "normal = minimap * 50 // 60". Exhaust both options if both font weights exist in the source.
 # Crop the minimap image beforehand to make sure that the top left of the image corrspond to the first character at the first line and the height is a multiple of 2.
-# Enter the filename
-filename = input("Filename: ").rstrip(".png") # input file is filename + ".png" at the same directory
+# Enter the path of the image as the first argument or from the console input
+import sys
+if len(sys.argv) == 2:
+    filename = sys.argv[1]
+else:
+    filename = input("Filename: ")
+# input file is filename + ".png" at the same directory
+filename = filename.rstrip(".PNG").rstrip(".png")
 if filename == "":
     filename = "minimap"
 # Wait for the script to finish
@@ -12,10 +18,11 @@ if filename == "":
 
 # Reminders:
 # Sometimes (background, color1, color2) are too close to linear that a color may be wrongly classified to be in another one. Check the cluster image to fix in case that happens.
-# Sometimes the configuration color is too close to the background that a minimap color pair may correspond to more than 1 possible characters. Manually fix the result if that happens.
+# Sometimes the configuration color is too close to the background that a minimap color pair may correspond to more than 1 possible characters (especially for bracket pairs like `()`, `[]`, `{}`, `<>` which intensities differ too small). Manually fix the result if that happens.
 # As the width of the minimap is fixed (e.g. 90), line breaks needs to be removed afterwards if long lines exist in the original source code.
 # Non-ascii characters are not supported for recovery, expect gibberish characters and long running time if they exist.
 # Some components may appear in minimap that are not characters (e.g. color preview). Expect a placeholder to be manually removed.
+# Lines that are currently being edited, and lines with warning(s) / error(s) may have a different background color. It is recommended to separate them to another file for recovery.
 
 # Code created by TWY (@t-wy), all rights reserved.
 # License description:
@@ -28,10 +35,13 @@ from tqdm import tqdm
 arr = np.array(Image.open(filename + ".png"))[:,:,:3]
 arr = arr.reshape((arr.shape[0] >> 1, 2, arr.shape[1], 3)).transpose((0, 2, 1, 3)).astype(int)
 
+def output_color(r, g, b):
+    print("#{0:02x}{1:02x}{2:02x} ({0}, {1}, {2})".format(r, g, b))
+
 # find background color: assume the mode is the background
 colors, count = np.unique(arr.reshape((-1, 3)), axis=0, return_counts=True)
 background = tuple(colors[np.argmax(count)])
-print("Background Color:", background)
+print("Background Color:", output_color(*background))
 
 def sort_key(x):
     return sorted(x, reverse=True)
@@ -245,6 +255,8 @@ def add_answers(test_map, cluster, color):
 def get_score(test_map, cluster):
     return sum(pair in test_map for pair in cluster)
 
+def output_choice(r, g, b):
+    print("Chosen: " + output_color(r, g, b))
 
 def exhaust(all_pairs):
     # do a lazy search to reduce the exhaust complexity
@@ -268,52 +280,54 @@ def exhaust(all_pairs):
             channel_cand = []
             for i in range(3):
                 channel_cand.append(find_candidates([(p[0][i], p[1][i]) for p in good_pairs], i))
-                print("RGB"[i], list(map(hex, channel_cand[-1])))
+                # print("RGB"[i], list(map(hex, channel_cand[-1])))
             scores = []
             for r, g, b in list_product(*channel_cand):
                 # check if r, g, b is a possible answer
                 test_map = gen_test_map(r, g, b)
                 if all(pair in test_map for pair in good_pairs):
-                    scores.append((sum(pair in test_map for pair in left_out), (r, g, b)))
+                    scores.append((get_score(test_map, left_out), (r, g, b)))
             scores.sort(reverse=True)
-            score, (r, g, b) = scores[0]
+            if len(scores):
+                score, (r, g, b) = scores[0]
+                test_map = gen_test_map(r, g, b)
+                output_choice(r, g, b)
+                add_answers(test_map, left_out, (r, g, b))
+                continue
+        # greedily choose a color that matches the most of remaining pairs
+        print("Exhausting...")
+        scores = []
+        candidates = set()
+        print("Finding candidates...")
+        for pair in tqdm(left_out):
+            if pair in candidates_cache:
+                candidates |= candidates_cache[pair]
+            else:
+                channel_cand = []
+                for i in range(3):
+                    channel_cand.append(find_candidates([(pair[0][i], pair[1][i])], i))
+                candidates_cache[pair] = set(list_product(*channel_cand))
+                candidates |= candidates_cache[pair]
+        print("Evaluating candidates...")
+        candidates -= set(failed_candidates)
+        for r, g, b in tqdm(list(candidates)):
             test_map = gen_test_map(r, g, b)
-            print("Chosen: #{:02x}{:02x}{:02x}".format(r, g, b))
+            scores.append((get_score(test_map, left_out), (r, g, b)))
+        scores.sort(reverse=True)
+        for score, (r, g, b) in reversed(scores):
+            if score > 0:
+                break
+            failed_candidates.add((r, g, b))
+        if len(scores) and scores[0][0] > 0:
+            score, (r, g, b) = scores[0]
+            output_choice(r, g, b)
+            print("Match: {:.2f}% of the remaining pairs".format(score * 100 / (len(left_out))))
+            test_map = gen_test_map(r, g, b)
             add_answers(test_map, left_out, (r, g, b))
         else:
-            # greedily choose a color that matches the most of remaining pairs
-            print("Exhausting...")
-            scores = []
-            candidates = set()
-            print("Finding candidates...")
-            for pair in tqdm(left_out):
-                if pair in candidates_cache:
-                    candidates |= candidates_cache[pair]
-                else:
-                    channel_cand = []
-                    for i in range(3):
-                        channel_cand.append(find_candidates([(pair[0][i], pair[1][i])], i))
-                    candidates_cache[pair] = set(list_product(*channel_cand))
-                    candidates |= candidates_cache[pair]
-            print("Evaluating candidates...")
-            candidates -= set(failed_candidates)
-            for r, g, b in tqdm(list(candidates)):
-                test_map = gen_test_map(r, g, b)
-                scores.append((sum(pair in test_map for pair in left_out), (r, g, b)))
-            scores.sort(reverse=True)
-            for score, (r, g, b) in reversed(scores):
-                if score > 0:
-                    break
-                failed_candidates.add((r, g, b))
-            if len(scores) and scores[0][0] > 0:
-                score, (r, g, b) = scores[0]
-                print("Chosen: #{:02x}{:02x}{:02x} {:.2f}%".format(r, g, b, score * 100 / (len(left_out))))
-                test_map = gen_test_map(r, g, b)
-                add_answers(test_map, left_out, (r, g, b))
-            else:
-                print("Non-ascii characters detected!")
-                # Probably all characters here are non-ascii
-                add_answers({pair: "?" for pair in left_out}, left_out, background)
+            print("Non-ascii characters detected!")
+            # Probably all characters here are non-ascii
+            add_answers({pair: "?" for pair in left_out}, left_out, background)
 
 
 for cluster in clusters:
@@ -324,22 +338,22 @@ for cluster in clusters:
             if not compatible(cluster[i], cluster[j]):
                 flag = False
     if flag:
-        print("Good")
+        # Found a potentially good cluster
         channel_cand = []
         for i in range(3):
             channel_cand.append(find_candidates([(p[0][i], p[1][i]) for p in cluster], i))
-            print("RGB"[i], list(map(hex, channel_cand[-1])))
+            # print("RGB"[i], list(map(hex, channel_cand[-1])))
         for r, g, b in list_product(*channel_cand):
             # check if r, g, b is a possible answer
             test_map = gen_test_map(r, g, b)
             if all(pair in test_map for pair in cluster):
-                print("Chosen: #{:02x}{:02x}{:02x}".format(r, g, b))
+                output_choice(r, g, b)
                 add_answers(test_map, cluster, (r, g, b))
                 break
         else:
             exhaust(cluster)
     else:
-        print("Bad")
+       # Found a bad cluster
         exhaust(cluster)
 
 lines = []
