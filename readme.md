@@ -15,9 +15,10 @@ _Normal font weight is expected. If light font weight is used, change the line "
 1. Sometimes (background, color1, color2) are too close to linear that a color may be wrongly classified to be in another one. Check the cluster image to fix in case that happens.
 1. Sometimes the configuration color is too close to the background that a minimap color pair may correspond to more than 1 possible characters (especially for bracket pairs like `()`, `[]`, `{}`, `<>` which intensities differ too small). Manually fix the result if that happens.
 1. As the width of the minimap is fixed (e.g. 90), line breaks needs to be removed afterwards if long lines exist in the original source code.
-1. Non-ascii characters are not supported for recovery, expect gibberish characters and long running time if they exist.
+1. Non-ascii characters can only be recovered to gibberish characters with the same code point (modulo 96).
 1. Some components may appear in minimap that are not characters (e.g. color preview). Expect a placeholder to be manually removed.
-1. Lines that are currently being edited, and lines with warning(s) / error(s) may have a different background color. It is recommended to separate them to another file for recovery.
+1. Lines that are currently being edited, and lines with warning(s) / error(s) may have a different background color. It is recommended to separate them to another file for recovery (or to manually cover them up with the background color).
+    - Expect gibberish characters and long running time if they are not separated.
 
 # Working Mechanism:
 1. Obtain the background color
@@ -30,7 +31,7 @@ _Normal font weight is expected. If light font weight is used, change the line "
 
 __**Notice that most clique problems are NP-complete, which means clustering using greedy algorithm may return sub-optimal results.**__
 
-## How to cluster:
+## How to (reliably) cluster:
 1. Get the angle range from the origin (background color) to each color in the pair
     - Referring to the angle range from background to the point (cube) (r±0.5, g±0.5, b±0.5)
 1. Find the intersection of the 2 ranges to get a single angle range of the shade of the character (in 3d)

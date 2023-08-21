@@ -20,9 +20,10 @@ if filename == "":
 # Sometimes (background, color1, color2) are too close to linear that a color may be wrongly classified to be in another one. Check the cluster image to fix in case that happens.
 # Sometimes the configuration color is too close to the background that a minimap color pair may correspond to more than 1 possible characters (especially for bracket pairs like `()`, `[]`, `{}`, `<>` which intensities differ too small). Manually fix the result if that happens.
 # As the width of the minimap is fixed (e.g. 90), line breaks needs to be removed afterwards if long lines exist in the original source code.
-# Non-ascii characters are not supported for recovery, expect gibberish characters and long running time if they exist.
+# Non-ascii characters can only be recovered to gibberish characters with the same code point (modulo 96).
 # Some components may appear in minimap that are not characters (e.g. color preview). Expect a placeholder to be manually removed.
-# Lines that are currently being edited, and lines with warning(s) / error(s) may have a different background color. It is recommended to separate them to another file for recovery.
+# Lines that are currently being edited, and lines with warning(s) / error(s) may have a different background color. It is recommended to separate them to another file for recovery (or to manually cover them up with the background color).
+# Expect gibberish characters and long running time if they are not separated.
 
 # Code created by TWY (@t-wy), all rights reserved.
 # License description:
@@ -42,6 +43,9 @@ def format_color(r, g, b):
 colors, count = np.unique(arr.reshape((-1, 3)), axis=0, return_counts=True)
 background = tuple(colors[np.argmax(count)])
 print("Background Color:", format_color(*background))
+# All potential background colors: background is the only color without difference between top and bottom pixel
+# background = np.unique(arr[np.all(arr[:, :, 0] == arr[:, :, 1], axis=2)][:, 0], axis=0)
+# print("Background Color:", background)
 
 all_pairs = set()
 for y in range(arr.shape[0]):
@@ -322,8 +326,8 @@ def exhaust(all_pairs):
             test_map = gen_test_map(r, g, b)
             add_answers(test_map, left_out, (r, g, b))
         else:
-            print("Non-ascii characters detected!")
-            # Probably all characters here are non-ascii
+            print("Characters on a different background detected!")
+            # Probably the whole line is on a different background color
             add_answers({pair: "?" for pair in left_out}, left_out, background)
 
 for cluster in clusters:
