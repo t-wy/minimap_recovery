@@ -36,6 +36,7 @@ __**Notice that most clique problems are NP-complete, which means clustering usi
     - Referring to the angle range from background to the point (cube) (r±0.5, g±0.5, b±0.5)
 1. Find the intersection of the 2 ranges to get a single angle range of the shade of the character (in 3d)
 1. Two pairs are said to be compatible if the ranges overlap, otherwise they must be of different color shades
+    - This is the same as finding out whether there exists a ray from the background (as 3D-coord) passing through all 4 (r±0.5, g±0.5, b±0.5) cubes
 
 # License description:
 - Code created by TWY (@t-wy), all rights reserved.
