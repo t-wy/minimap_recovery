@@ -15,13 +15,14 @@
                 display: block;
                 width: 100%;
                 height: 25vh;
-                line-height: 25vh;
-                font-size: 200%;
+                font-size: 150%;
                 text-align: center;
                 border: 1px solid black;
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
-            #dragarea input {
-                line-height: 25vh;
+            #dragarea input, #dragarea button {
                 font-size: 100%;
             }
             #dragarea.active {
@@ -64,7 +65,8 @@
                 border-width: 1px solid white;
                 margin-left: 5px;
             }
-            img {
+            /* img { */
+            #input_canvas {
                 display: block;
                 height: 25vh;
                 border: 1px solid black;
@@ -75,16 +77,23 @@
         <h1>VSCode / VSCodium Minimap Recovery</h1>
         <a href="https://github.com/t-wy/minimap_recovery">Repository</a>
         <div id="dragarea">
-            Drop Here, or <input type="file" id="drag_input" accept="image/png" />
+            <div>
+                Drop Here, or <input type="file" id="drag_input" accept="image/png" />, or <button id="btn_load_default" onclick="load_default()">Load Default</button>.
+            </div>
         </div>
+        <hr>
         Input Image:
-        <img id="input_image">
+        <!-- <img id="input_image"> -->
+        <canvas id="input_canvas"></canvas>
+        <hr>
         Console:
         <div id="console"></div>
+        <hr>
         Result (Click on the characters to show other possible options):
         <div id="drawer"></div>
         <div id="result"></div>
-        Clusters:
+        <hr>
+        Clusters:<br>
         <img id="result_image">
         <hr>
         <div>
@@ -119,551 +128,557 @@
             function range(start, end) {
                 return Array(end - start).fill().map((_, i) => start + i);
             }
-            function readFile(file) {
-                input_image.src = URL.createObjectURL(file);
-                input_image.onload = function(){
-                    var canvas = document.createElement('canvas');
-                    canvas.height = input_image.naturalHeight;
-                    canvas.width = input_image.naturalWidth;
-                    var context = canvas.getContext('2d');
-                    context.drawImage(input_image, 0, 0);
-                    var data = context.getImageData(0, 0, canvas.width, canvas.height);
-                    var arr = [];
-                    for (var i = 0; i < data.height; i += 2) {
-                        var row = [];
-                        for (var j = 0; j < data.width; ++j) {
-                            var pair = [];
-                            for (var k = 0; k < 2; ++k) {
-                                var color = [];
-                                for (var l = 0; l < 3; ++l) {
-                                    color.push(data.data[(i + k) * data.width * 4 + j * 4 + l]);
-                                }
-                                pair.push(color);
+            async function load_default() {
+                const file = await fetch("default.png").then(r => r.blob());
+                await readFile(file);
+            }
+            
+            async function readFile(file) {
+                const bitmap = await createImageBitmap(file, { "colorSpaceConversion": "none" });
+                var canvas = document.getElementById("input_canvas");
+                canvas.height = bitmap.height;
+                canvas.width = bitmap.width;
+                var context = canvas.getContext('2d', { willReadFrequently: true });
+                context.drawImage(bitmap, 0, 0);
+            //     await processContext(context);
+            // }
+            // async function processContext(context) {
+                var data = context.getImageData(0, 0, canvas.width, canvas.height);
+                var arr = [];
+                for (var i = 0; i < data.height; i += 2) {
+                    var row = [];
+                    for (var j = 0; j < data.width; ++j) {
+                        var pair = [];
+                        for (var k = 0; k < 2; ++k) {
+                            var color = [];
+                            for (var l = 0; l < 3; ++l) {
+                                color.push(data.data[(i + k) * data.width * 4 + j * 4 + l]);
                             }
-                            row.push(pair);
+                            pair.push(color);
                         }
-                        arr.push(row);
+                        row.push(pair);
                     }
-                    
-                    function color_key(color) {
-                        return color.join("|");
-                    }
-                    
-                    function key_color(key) {
-                        return key.split("|").map(v => +v);
-                    }
-                    
-                    function pair_key(pair) {
-                        return pair.map(color_key).join("||");
-                    }
-                    
-                    function key_pair(key) {
-                        return key.split("||").map(key_color);
-                    }
-                    
-                    function format_color(r, g, b) {
-                        return "#" + (r << 16 | g << 8 | b).toString(16).padStart(6, "0") + ` (${r}, ${g}, ${b})`;
-                    }
+                    arr.push(row);
+                }
+                
+                function color_key(color) {
+                    return color.join("|");
+                }
+                
+                function key_color(key) {
+                    return key.split("|").map(v => +v);
+                }
+                
+                function pair_key(pair) {
+                    return pair.map(color_key).join("||");
+                }
+                
+                function key_pair(key) {
+                    return key.split("||").map(key_color);
+                }
+                
+                function format_color(r, g, b) {
+                    return "#" + (r << 16 | g << 8 | b).toString(16).padStart(6, "0") + ` (${r}, ${g}, ${b})`;
+                }
 
-                    // find background color: assume the mode is the background
+                // find background color: assume the mode is the background
+                var temp = {};
+                for (var i = 0; i < data.data.length; i += 4) {
+                    var key = color_key(data.data.slice(i, i + 3));
+                    temp[key] = (temp[key] || 0) + 1;
+                }
+                var background = key_color(Object.keys(temp).sort((a, b) => temp[b] - temp[a])[0]);
+                print("Background Color:", format_color(...background));
+
+                var all_pairs = new Set();
+                for (var y = 0; y < arr.length; ++y) {
+                    for (var x = 0; x < arr[y].length; ++x) {
+                        all_pairs.add(pair_key(arr[y][x]));
+                    }
+                }
+                all_pairs = Array.from(all_pairs.values()).map(key_pair);
+
+                function get_theta_range(offset1, offset2) {
+                    // angle range such that some vector from background can reach points that can be rounded to (offset1, offset2)
+                    // handle 9 kinds of range, angle should be < pi unless both signs are 0
+                    function sign(v) {
+                        return v > 0.5 ? 1 : v < -0.5 ? -1 : 0;
+                    }
+                    sign1 = sign(offset1);
+                    sign2 = sign(offset2);
+                    if (sign1 == 0 && sign2 == 0) {
+                        // accept all angles
+                        return [-Math.PI, Math.PI];
+                    }
+                    var xoffset, yoffset;
+                    if (sign2 == 0) {
+                        if (sign1 == 1) {
+                            xoffset = [offset1 - 0.5, offset1 - 0.5];
+                        } else {
+                            xoffset = [offset1 + 0.5, offset1 + 0.5];
+                        }
+                    } else if (sign2 == 1) {
+                        xoffset = [offset1 + 0.5, offset1 - 0.5];
+                    } else {
+                        xoffset = [offset1 - 0.5, offset1 + 0.5];
+                    }
+                    if (sign1 == 0) {
+                        if (sign2 == 1) {
+                            yoffset = [offset2 - 0.5, offset2 - 0.5];
+                        } else {
+                            yoffset = [offset2 + 0.5, offset2 + 0.5];
+                        }
+                    } else if (sign1 == 1) {
+                        yoffset = [offset2 - 0.5, offset2 + 0.5];
+                    } else {
+                        yoffset = [offset2 + 0.5, offset2 - 0.5];
+                    }
+                    return [
+                        Math.atan2(yoffset[0], xoffset[0]),
+                        Math.atan2(yoffset[1], xoffset[1])
+                    ]
+                }
+
+                function merge_theta_range(r1, r2) {
+                    // merge two angle ranges
+                    if (r1 === null) {
+                        return null;
+                    }
+                    if (r2 === null) {
+                        return null;
+                    }
+                    function is_full_range(r) {
+                        return r[0] === -Math.PI && r[1] === Math.PI;
+                    }
+                    function is_pass_pi(r) {
+                        return r[1] < r[0];
+                    }
+                    if (is_full_range(r1)) {
+                        return r2;
+                    }
+                    if (is_full_range(r2)) {
+                        return r1;
+                    }
+                    if (is_pass_pi(r1)) {
+                        if (is_pass_pi(r2)) {
+                            return [Math.max(r1[0], r2[0]), Math.min(r1[1], r2[1])];
+                        }
+                        if (r1[1] >= r2[0]) {
+                            return [r2[0], Math.min(r1[1], r2[1])];
+                        }
+                        return null;
+                    } else {
+                        if (is_pass_pi(r2)) {
+                            if (r2[1] >= r1[0]) {
+                                return [r1[0], Math.min(r1[1], r2[1])];
+                            }
+                            return null;
+                        }
+                        if (r1[1] >= r2[0] && r2[1] >= r1[0]) {
+                            return [Math.max(r1[0], r2[0]), Math.min(r1[1], r2[1])];
+                        }
+                        return null;
+                    }
+                }
+
+                function get_range(color) {
+                    var v = [
+                        color[0] - background[0],
+                        color[1] - background[1],
+                        color[2] - background[2]
+                    ]
+                    return [
+                        get_theta_range(v[0], v[1]),
+                        get_theta_range(v[1], v[2]),
+                        get_theta_range(v[2], v[0])
+                    ]
+                }
+
+                function merge_range(r1, r2) {
+                    return [
+                        merge_theta_range(r1[0], r2[0]),
+                        merge_theta_range(r1[1], r2[1]),
+                        merge_theta_range(r1[2], r2[2])
+                    ]
+                }
+
+                // the standard one
+                function compatible(pair1, pair2) {
+                    var temp = merge_range(
+                        merge_range(get_range(pair1[0]), get_range(pair1[1])),
+                        merge_range(get_range(pair2[0]), get_range(pair2[1]))
+                    );
+                    return temp[0] !== null && temp[1] !== null && temp[2] !== null;
+                }
+
+                // https://github.com/microsoft/vscode/blob/main/src/vs/editor/browser/viewParts/minimap/minimapPreBaked.ts
+                var minimap = "0000511D6300CF609C709645A78432005642574171487021003C451900274D35D762755E8B629C5BA856AF57BA649530C167D1512A272A3F6038604460398526BCA2A968DB6F8957C768BE5FBE2FB467CF5D8D5B795DC7625B5DFF50DE64C466DB2FC47CD860A65E9A2EB96CB54CE06DA763AB2EA26860524D3763536601005116008177A8705E53AB738E6A982F88BAA35B5F5B626D9C636B449B737E5B7B678598869A662F6B5B8542706C704C80736A607578685B70594A49715A4522E792";
+                minimap = new Array(minimap.length >> 2).fill(0).map((_, index) => [
+                    parseInt(minimap.slice(index * 4, index * 4 + 2), 16),
+                    parseInt(minimap.slice(index * 4 + 2, index * 4 + 4), 16)
+                ]);
+
+                // https://github.com/microsoft/vscode/blob/main/src/vs/editor/browser/viewParts/minimap/minimapCharRenderer.ts#L16
+                var normal = minimap.map(color => color.map(value => Math.floor(value * 12 / 15)));
+
+                function composite(bg, fg, alpha) {
+                    return Math.round(bg + (fg - bg) * alpha / 255);
+                }
+
+                function find_candidates(pairs, channel) {
+                    bg = background[channel];
+                    // pairs: values from a single channel
+                    _max = Math.max(...pairs.flat());
+                    _min = Math.min(...pairs.flat());
+                    assert(_max <= bg || _min >= bg);
+
+                    var pairs_set = new Set();
+                    for (var i = 0; i < pairs.length; i++) {
+                        pairs_set.add(pairs[i].join("|"));
+                    }
+                    // never going to have 127.5 so no problem with rounding
+                    var test_range;
+                    if (_max <= bg) {
+                        if (_min === bg) {
+                            return [bg]; // list(range(255)) // no way to determine the color, just take one of them to reduce iteration count
+                        } else {
+                            // only need to test [0, _max]
+                            test_range = range(0, _max + 1);
+                        }
+                    } else {
+                        // only need to test [_min, 255]
+                        test_range = range(_min, 256);
+                    }
+                    var temp = [];
+                    for (var test of test_range) {
+                        var test_set = new Set();
+                        for (var i of normal) {
+                            test_set.add([
+                                composite(bg, test, i[0]),
+                                composite(bg, test, i[1])
+                            ].join("|"));
+                        }
+                        if (Array.from(pairs_set).every(pair => test_set.has(pair))) {
+                            temp.push(test);
+                        }
+                    }
+                    return temp;
+                }
+
+                var clusters = [];
+                // do clustering
+                for (var pair of all_pairs) {
+                    if (pair_key(pair) === pair_key([background, background])) {
+                        continue;
+                    }
+                    var clusters2 = [];
+                    var clusters3 = [pair];
+                    for (var cl of clusters) {
+                        var temp = true;
+                        for (var co of cl) {
+                            if (compatible(co, pair)) {
+                                clusters3.push(...cl);
+                                temp = false;
+                                break;
+                            }
+                        }
+                        if (temp) {
+                            clusters2.push(cl);
+                        }
+                    }
+                    clusters2.push(clusters3);
+                    clusters = clusters2;
+                }
+
+                function list_product(...x) {
+                    var result = [];
+                    if (x.length === 1) {
+                        for (var i of x[0]) {
+                            result.push([i]);
+                        }
+                    } else {
+                        for (var i of x[0]) {
+                            for (var j of list_product(...x.slice(1))) {
+                                result.push([i, ...j]);
+                            }
+                        }
+                    }
+                    return result;
+                }
+
+                // do strict clustering
+                // Notice that clique problem is NP-complete, which means the below method may return sub-optimal results
+                var answer = {};
+                var refer = {};
+
+                function gen_test_map(r, g, b) {
                     var temp = {};
-                    for (var i = 0; i < data.data.length; i += 4) {
-                        var key = color_key(data.data.slice(i, i + 3));
-                        temp[key] = (temp[key] || 0) + 1;
-                    }
-                    var background = key_color(Object.keys(temp).sort((a, b) => temp[b] - temp[a])[0]);
-                    print("Background Color:", format_color(...background));
+                    normal.forEach((i, c) => {
+                        var key = [];
+                        for (var it of i) {
+                            key.push([r, g, b].map((test, index) => composite(background[index], test, it)));
+                        }
+                        temp[pair_key(key)] = String.fromCharCode(32 + c);
+                    });
+                    return temp;
+                }
 
-                    var all_pairs = new Set();
-                    for (var y = 0; y < arr.length; ++y) {
-                        for (var x = 0; x < arr[y].length; ++x) {
-                            all_pairs.add(pair_key(arr[y][x]));
+                function gen_test_list(r, g, b) {
+                    var temp = [];
+                    normal.forEach((i, c) => {
+                        var key = [];
+                        for (var it of i) {
+                            key.push([r, g, b].map((test, index) => composite(background[index], test, it)));
                         }
-                    }
-                    all_pairs = Array.from(all_pairs.values()).map(key_pair);
+                        temp.push([pair_key(key), String.fromCharCode(32 + c)]);
+                    });
+                    return temp;
+                }
 
-                    function get_theta_range(offset1, offset2) {
-                        // angle range such that some vector from background can reach points that can be rounded to (offset1, offset2)
-                        // handle 9 kinds of range, angle should be < pi unless both signs are 0
-                        function sign(v) {
-                            return v > 0.5 ? 1 : v < -0.5 ? -1 : 0;
-                        }
-                        sign1 = sign(offset1);
-                        sign2 = sign(offset2);
-                        if (sign1 == 0 && sign2 == 0) {
-                            // accept all angles
-                            return [-Math.PI, Math.PI];
-                        }
-                        var xoffset, yoffset;
-                        if (sign2 == 0) {
-                            if (sign1 == 1) {
-                                xoffset = [offset1 - 0.5, offset1 - 0.5];
-                            } else {
-                                xoffset = [offset1 + 0.5, offset1 + 0.5];
-                            }
-                        } else if (sign2 == 1) {
-                            xoffset = [offset1 + 0.5, offset1 - 0.5];
-                        } else {
-                            xoffset = [offset1 - 0.5, offset1 + 0.5];
-                        }
-                        if (sign1 == 0) {
-                            if (sign2 == 1) {
-                                yoffset = [offset2 - 0.5, offset2 - 0.5];
-                            } else {
-                                yoffset = [offset2 + 0.5, offset2 + 0.5];
-                            }
-                        } else if (sign1 == 1) {
-                            yoffset = [offset2 - 0.5, offset2 + 0.5];
-                        } else {
-                            yoffset = [offset2 + 0.5, offset2 - 0.5];
-                        }
-                        return [
-                            Math.atan2(yoffset[0], xoffset[0]),
-                            Math.atan2(yoffset[1], xoffset[1])
-                        ]
-                    }
-
-                    function merge_theta_range(r1, r2) {
-                        // merge two angle ranges
-                        if (r1 === null) {
-                            return null;
-                        }
-                        if (r2 === null) {
-                            return null;
-                        }
-                        function is_full_range(r) {
-                            return r[0] === -Math.PI && r[1] === Math.PI;
-                        }
-                        function is_pass_pi(r) {
-                            return r[1] < r[0];
-                        }
-                        if (is_full_range(r1)) {
-                            return r2;
-                        }
-                        if (is_full_range(r2)) {
-                            return r1;
-                        }
-                        if (is_pass_pi(r1)) {
-                            if (is_pass_pi(r2)) {
-                                return [Math.max(r1[0], r2[0]), Math.min(r1[1], r2[1])];
-                            }
-                            if (r1[1] >= r2[0]) {
-                                return [r2[0], Math.min(r1[1], r2[1])];
-                            }
-                            return null;
-                        } else {
-                            if (is_pass_pi(r2)) {
-                                if (r2[1] >= r1[0]) {
-                                    return [r1[0], Math.min(r1[1], r2[1])];
-                                }
-                                return null;
-                            }
-                            if (r1[1] >= r2[0] && r2[1] >= r1[0]) {
-                                return [Math.max(r1[0], r2[0]), Math.min(r1[1], r2[1])];
-                            }
-                            return null;
+                function add_answers(test_map, cluster, color) {
+                    for (var pair of cluster) {
+                        if (answer[pair_key(pair)] === undefined && test_map[pair_key(pair)] !== undefined) {
+                            answer[pair_key(pair)] = test_map[pair_key(pair)];
+                            refer[pair_key(pair)] = color;
                         }
                     }
+                }
 
-                    function get_range(color) {
-                        var v = [
-                            color[0] - background[0],
-                            color[1] - background[1],
-                            color[2] - background[2]
-                        ]
-                        return [
-                            get_theta_range(v[0], v[1]),
-                            get_theta_range(v[1], v[2]),
-                            get_theta_range(v[2], v[0])
-                        ]
-                    }
-
-                    function merge_range(r1, r2) {
-                        return [
-                            merge_theta_range(r1[0], r2[0]),
-                            merge_theta_range(r1[1], r2[1]),
-                            merge_theta_range(r1[2], r2[2])
-                        ]
-                    }
-
-                    // the standard one
-                    function compatible(pair1, pair2) {
-                        var temp = merge_range(
-                            merge_range(get_range(pair1[0]), get_range(pair1[1])),
-                            merge_range(get_range(pair2[0]), get_range(pair2[1]))
-                        );
-                        return temp[0] !== null && temp[1] !== null && temp[2] !== null;
-                    }
-
-                    // https://github.com/microsoft/vscode/blob/main/src/vs/editor/browser/viewParts/minimap/minimapPreBaked.ts
-                    var minimap = "0000511D6300CF609C709645A78432005642574171487021003C451900274D35D762755E8B629C5BA856AF57BA649530C167D1512A272A3F6038604460398526BCA2A968DB6F8957C768BE5FBE2FB467CF5D8D5B795DC7625B5DFF50DE64C466DB2FC47CD860A65E9A2EB96CB54CE06DA763AB2EA26860524D3763536601005116008177A8705E53AB738E6A982F88BAA35B5F5B626D9C636B449B737E5B7B678598869A662F6B5B8542706C704C80736A607578685B70594A49715A4522E792";
-                    minimap = new Array(minimap.length >> 2).fill(0).map((_, index) => [
-                        parseInt(minimap.slice(index * 4, index * 4 + 2), 16),
-                        parseInt(minimap.slice(index * 4 + 2, index * 4 + 4), 16)
-                    ]);
-
-                    // https://github.com/microsoft/vscode/blob/main/src/vs/editor/browser/viewParts/minimap/minimapCharRenderer.ts#L16
-                    var normal = minimap.map(color => color.map(value => Math.floor(value * 12 / 15)));
-
-                    function composite(bg, fg, alpha) {
-                        return Math.round(bg + (fg - bg) * alpha / 255);
-                    }
-
-                    function find_candidates(pairs, channel) {
-                        bg = background[channel];
-                        // pairs: values from a single channel
-                        _max = Math.max(...pairs.flat());
-                        _min = Math.min(...pairs.flat());
-                        assert(_max <= bg || _min >= bg);
-
-                        var pairs_set = new Set();
-                        for (var i = 0; i < pairs.length; i++) {
-                            pairs_set.add(pairs[i].join("|"));
+                function get_score(test_map, cluster) {
+                    var score = 0;
+                    for (var pair of cluster) {
+                        if (test_map[pair_key(pair)] !== undefined) {
+                            ++score;
                         }
-                        // never going to have 127.5 so no problem with rounding
-                        var test_range;
-                        if (_max <= bg) {
-                            if (_min === bg) {
-                                return [bg]; // list(range(255)) // no way to determine the color, just take one of them to reduce iteration count
-                            } else {
-                                // only need to test [0, _max]
-                                test_range = range(0, _max + 1);
-                            }
-                        } else {
-                            // only need to test [_min, 255]
-                            test_range = range(_min, 256);
-                        }
-                        var temp = [];
-                        for (var test of test_range) {
-                            var test_set = new Set();
-                            for (var i of normal) {
-                                test_set.add([
-                                    composite(bg, test, i[0]),
-                                    composite(bg, test, i[1])
-                                ].join("|"));
-                            }
-                            if (Array.from(pairs_set).every(pair => test_set.has(pair))) {
-                                temp.push(test);
-                            }
-                        }
-                        return temp;
                     }
+                    return score;
+                }
 
-                    var clusters = [];
-                    // do clustering
-                    for (var pair of all_pairs) {
-                        if (pair_key(pair) === pair_key([background, background])) {
-                            continue;
+                var chosen_colors = [];
+
+                function output_choice(r, g, b) {
+                    print("Chosen: " + format_color(r, g, b));
+                    chosen_colors.push([r, g, b]);
+                }
+
+                function exhaust(all_pairs) {
+                    // do a lazy search to reduce the exhaust complexity
+                    var failed_candidates = new Set();
+                    var candidates_cache = {};
+                    while (true) {
+                        var left_out = all_pairs.filter(pair => answer[pair_key(pair)] === undefined);
+                        if (left_out.length === 0) {
+                            return;
                         }
-                        var clusters2 = [];
-                        var clusters3 = [pair];
-                        for (var cl of clusters) {
+                        // get all pairs that are compatible with all other pairs
+                        var good_pairs = [];
+                        var bad_pairs = [];
+                        for (var i of left_out) {
                             var temp = true;
-                            for (var co of cl) {
-                                if (compatible(co, pair)) {
-                                    clusters3.push(...cl);
+                            for (var j of left_out) {
+                                if (!compatible(i, j)) {
+                                    bad_pairs.push(i);
                                     temp = false;
                                     break;
                                 }
                             }
                             if (temp) {
-                                clusters2.push(cl);
+                                good_pairs.push(i);
                             }
                         }
-                        clusters2.push(clusters3);
-                        clusters = clusters2;
-                    }
-
-                    function list_product(...x) {
-                        var result = [];
-                        if (x.length === 1) {
-                            for (var i of x[0]) {
-                                result.push([i]);
+                        if (good_pairs.length) {
+                            var channel_cand = [];
+                            for (var i = 0; i < 3; ++i) {
+                                channel_cand.push(find_candidates(good_pairs.map(p => [p[0][i], p[1][i]]), i));
+                                // print("RGB"[i], list(map(hex, channel_cand[-1])))
                             }
-                        } else {
-                            for (var i of x[0]) {
-                                for (var j of list_product(...x.slice(1))) {
-                                    result.push([i, ...j]);
+                            var scores = [];
+                            for (var color of list_product(...channel_cand)) {
+                                var test_map = gen_test_map(...color);
+                                if (good_pairs.every(pair => test_map[pair_key(pair)] !== undefined)) {
+                                    scores.push([get_score(test_map, left_out), color]);
                                 }
                             }
-                        }
-                        return result;
-                    }
-
-                    // do strict clustering
-                    // Notice that clique problem is NP-complete, which means the below method may return sub-optimal results
-                    var answer = {};
-                    var refer = {};
-
-                    function gen_test_map(r, g, b) {
-                        var temp = {};
-                        normal.forEach((i, c) => {
-                            var key = [];
-                            for (var it of i) {
-                                key.push([r, g, b].map((test, index) => composite(background[index], test, it)));
-                            }
-                            temp[pair_key(key)] = String.fromCharCode(32 + c);
-                        });
-                        return temp;
-                    }
-
-                    function gen_test_list(r, g, b) {
-                        var temp = [];
-                        normal.forEach((i, c) => {
-                            var key = [];
-                            for (var it of i) {
-                                key.push([r, g, b].map((test, index) => composite(background[index], test, it)));
-                            }
-                            temp.push([pair_key(key), String.fromCharCode(32 + c)]);
-                        });
-                        return temp;
-                    }
-
-                    function add_answers(test_map, cluster, color) {
-                        for (var pair of cluster) {
-                            if (answer[pair_key(pair)] === undefined && test_map[pair_key(pair)] !== undefined) {
-                                answer[pair_key(pair)] = test_map[pair_key(pair)];
-                                refer[pair_key(pair)] = color;
+                            scores.sort((a, b) => b[0] - a[0]);
+                            if (scores.length) {
+                                var color = scores[0][1];
+                                var test_map = gen_test_map(...color);
+                                output_choice(...color);
+                                add_answers(test_map, left_out, color);
+                                continue;
                             }
                         }
-                    }
-
-                    function get_score(test_map, cluster) {
-                        var score = 0;
-                        for (var pair of cluster) {
-                            if (test_map[pair_key(pair)] !== undefined) {
-                                ++score;
-                            }
-                        }
-                        return score;
-                    }
-
-                    var chosen_colors = [];
-
-                    function output_choice(r, g, b) {
-                        print("Chosen: " + format_color(r, g, b));
-                        chosen_colors.push([r, g, b]);
-                    }
-
-                    function exhaust(all_pairs) {
-                        // do a lazy search to reduce the exhaust complexity
-                        var failed_candidates = new Set();
-                        var candidates_cache = {};
-                        while (true) {
-                            var left_out = all_pairs.filter(pair => answer[pair_key(pair)] === undefined);
-                            if (left_out.length === 0) {
-                                return;
-                            }
-                            // get all pairs that are compatible with all other pairs
-                            var good_pairs = [];
-                            var bad_pairs = [];
-                            for (var i of left_out) {
-                                var temp = true;
-                                for (var j of left_out) {
-                                    if (!compatible(i, j)) {
-                                        bad_pairs.push(i);
-                                        temp = false;
-                                        break;
-                                    }
-                                }
-                                if (temp) {
-                                    good_pairs.push(i);
-                                }
-                            }
-                            if (good_pairs.length) {
+                        // greedily choose a color that matches the most of remaining pairs
+                        print("Exhausting...");
+                        var scores = [];
+                        var candidates = new Set();
+                        print("Finding candidates...");
+                        for (var pair of left_out) {
+                            if (candidates_cache[pair_key(pair)] !== undefined) {
+                                candidates_cache[pair_key(pair)].forEach(temp => candidates.add(temp))
+                            } else {
                                 var channel_cand = [];
                                 for (var i = 0; i < 3; ++i) {
-                                    channel_cand.push(find_candidates(good_pairs.map(p => [p[0][i], p[1][i]]), i));
-                                    // print("RGB"[i], list(map(hex, channel_cand[-1])))
+                                    channel_cand.push(find_candidates([[pair[0][i], pair[1][i]]], i));
                                 }
-                                var scores = [];
+                                var temp = new Set();
                                 for (var color of list_product(...channel_cand)) {
-                                    var test_map = gen_test_map(...color);
-                                    if (good_pairs.every(pair => test_map[pair_key(pair)] !== undefined)) {
-                                        scores.push([get_score(test_map, left_out), color]);
-                                    }
+                                    temp.add(color_key(color));
+                                    candidates.add(color_key(color));
                                 }
-                                scores.sort((a, b) => b[0] - a[0]);
-                                if (scores.length) {
-                                    var color = scores[0][1];
-                                    var test_map = gen_test_map(...color);
-                                    output_choice(...color);
-                                    add_answers(test_map, left_out, color);
-                                    continue;
-                                }
+                                candidates_cache[pair_key(pair)] = temp;
                             }
-                            // greedily choose a color that matches the most of remaining pairs
-                            print("Exhausting...");
-                            var scores = [];
-                            var candidates = new Set();
-                            print("Finding candidates...");
+                        }
+                        print("Evaluating candidates...");
+                        candidates = Array.from(candidates).filter(temp => !failed_candidates.has(temp));
+                        for (var temp of candidates) {
+                            var color = key_color(temp).map(v => +v);
+                            var test_map = gen_test_map(...color);
+                            scores.push([get_score(test_map, left_out), color]);
+                        }
+                        scores.sort((a, b) => a[0] - b[0]);
+                        for (var temp of scores) {
+                            if (temp[0] > 0) {
+                                break;
+                            }
+                            failed_candidates.add(color_key(temp[1]));
+                        }
+                        scores.reverse();
+                        if (scores.length && scores[0][0] > 0) {
+                            var score = scores[0][0];
+                            var color = scores[0][1];
+                            output_choice(...color);
+                            print("Match: "  + (score * 100 / (left_out.length)).toFixed(2) + "% of the remaining pairs")
+                            var test_map = gen_test_map(...color);
+                            add_answers(test_map, left_out, color);
+                        } else {
+                            print("Characters on a different background detected!");
+                            // Probably the whole line is on a different background color
+                            var map = {};
                             for (var pair of left_out) {
-                                if (candidates_cache[pair_key(pair)] !== undefined) {
-                                    candidates_cache[pair_key(pair)].forEach(temp => candidates.add(temp))
-                                } else {
-                                    var channel_cand = [];
-                                    for (var i = 0; i < 3; ++i) {
-                                        channel_cand.push(find_candidates([[pair[0][i], pair[1][i]]], i));
-                                    }
-                                    var temp = new Set();
-                                    for (var color of list_product(...channel_cand)) {
-                                        temp.add(color_key(color));
-                                        candidates.add(color_key(color));
-                                    }
-                                    candidates_cache[pair_key(pair)] = temp;
-                                }
+                                map[pair_key(pair)] = "?";
                             }
-                            print("Evaluating candidates...");
-                            candidates = Array.from(candidates).filter(temp => !failed_candidates.has(temp));
-                            for (var temp of candidates) {
-                                var color = key_color(temp).map(v => +v);
-                                var test_map = gen_test_map(...color);
-                                scores.push([get_score(test_map, left_out), color]);
-                            }
-                            scores.sort((a, b) => a[0] - b[0]);
-                            for (var temp of scores) {
-                                if (temp[0] > 0) {
-                                    break;
-                                }
-                                failed_candidates.add(color_key(temp[1]));
-                            }
-                            scores.reverse();
-                            if (scores.length && scores[0][0] > 0) {
-                                var score = scores[0][0];
-                                var color = scores[0][1];
-                                output_choice(...color);
-                                print("Match: "  + (score * 100 / (left_out.length)).toFixed(2) + "% of the remaining pairs")
-                                var test_map = gen_test_map(...color);
-                                add_answers(test_map, left_out, color);
-                            } else {
-                                print("Characters on a different background detected!");
-                                // Probably the whole line is on a different background color
-                                var map = {};
-                                for (var pair of left_out) {
-                                    map[pair_key(pair)] = "?";
-                                }
-                                add_answers(map, left_out, background);
+                            add_answers(map, left_out, background);
+                        }
+                    }
+                }
+
+                for (var cluster of clusters) {
+                    // check if all pairs are compatible
+                    var flag = true;
+                    for (var i = 0; i < cluster.length; i++) {
+                        for (var j = i + 1; j < cluster.length; j++) {
+                            if (!compatible(cluster[i], cluster[j])) {
+                                flag = false;
                             }
                         }
                     }
-
-                    for (var cluster of clusters) {
-                        // check if all pairs are compatible
-                        var flag = true;
-                        for (var i = 0; i < cluster.length; i++) {
-                            for (var j = i + 1; j < cluster.length; j++) {
-                                if (!compatible(cluster[i], cluster[j])) {
-                                    flag = false;
-                                }
+                    if (flag) {
+                        // Found a potentially good cluster
+                        var channel_cand = [];
+                        for (var i = 0; i < 3; ++i) {                                
+                            channel_cand.push(find_candidates(cluster.map(p => [p[0][i], p[1][i]]), i));
+                            // print("RGB"[i], channel_cand.slice(-1)[0])
+                        }
+                        for (var color of list_product(...channel_cand)) {
+                            // check if r, g, b is a possible answer
+                            var test_map = gen_test_map(...color);
+                            if (cluster.every(pair => test_map[pair_key(pair)] !== undefined)) {
+                                output_choice(...color);
+                                add_answers(test_map, cluster, color);
+                                flag = false;
+                                break;
                             }
                         }
                         if (flag) {
-                            // Found a potentially good cluster
-                            var channel_cand = [];
-                            for (var i = 0; i < 3; ++i) {                                
-                                channel_cand.push(find_candidates(cluster.map(p => [p[0][i], p[1][i]]), i));
-                                // print("RGB"[i], channel_cand.slice(-1)[0])
-                            }
-                            for (var color of list_product(...channel_cand)) {
-                                // check if r, g, b is a possible answer
-                                var test_map = gen_test_map(...color);
-                                if (cluster.every(pair => test_map[pair_key(pair)] !== undefined)) {
-                                    output_choice(...color);
-                                    add_answers(test_map, cluster, color);
-                                    flag = false;
-                                    break;
-                                }
-                            }
-                            if (flag) {
-                                exhaust(cluster);
-                            }
-                        } else {
-                            // Found a bad cluster
                             exhaust(cluster);
                         }
+                    } else {
+                        // Found a bad cluster
+                        exhaust(cluster);
                     }
-                    
-                    var drawer_target = null;
-                    function replace_drawer() {
-                        if (drawer_target !== null) {
-                            var color = key_color(this.dataset.color);
-                            drawer_target.innerText = this.dataset.text;
-                            drawer_target.style.color = `rgb(${color.join(", ")})`;
-                        }
+                }
+                
+                var drawer_target = null;
+                function replace_drawer() {
+                    if (drawer_target !== null) {
+                        var color = key_color(this.dataset.color);
+                        drawer_target.innerText = this.dataset.text;
+                        drawer_target.style.color = `rgb(${color.join(", ")})`;
                     }
-                    function generate_drawer() {
-                        if (drawer_target !== null) {
-                            drawer_target.classList.remove("active");
-                        }
-                        drawer_target = this;
-                        drawer_target.classList.add("active");
-                        drawer.innerText = "";
-                        var target_key = this.dataset.pair;
-                        if (target_key === pair_key([background, background])) {
-                            return;
-                        }
-                        chosen_colors.forEach(color => {
-                            var test_list = gen_test_list(...color);
-                            test_list.forEach(entry => {
-                                if (entry[0] === target_key) {
-                                    var div = document.createElement("div");
-                                    div.classList.add("drawer_entry");
-                                    div.innerText = entry[1];
-                                    div.style.color = `rgb(${color.join(", ")})`;
-                                    div.dataset.text = entry[1];
-                                    div.dataset.color = color_key(color);
-                                    div.style.backgroundColor = `rgb(${background.join(", ")})`;
-                                    div.onclick = replace_drawer;
-                                    drawer.appendChild(div);
-                                }
-                            })
-                        })
+                }
+                function generate_drawer() {
+                    if (drawer_target !== null) {
+                        drawer_target.classList.remove("active");
                     }
-
-                    var canvas = document.createElement('canvas');
-                    canvas.height = arr.length;
-                    canvas.width = arr[0].length;
-                    var context = canvas.getContext('2d');
-                    var cluster_arr = context.getImageData(0, 0, canvas.width, canvas.height);
+                    drawer_target = this;
+                    drawer_target.classList.add("active");
                     drawer.innerText = "";
-                    result.innerText = "";
-                    result.style.backgroundColor = `rgb(${background.join(", ")})`;
-                    for (var y = 0; y < arr.length; ++y) {
-                        var line = [];
-                        var colors = [];
-                        for (var x = 0; x < arr[0].length; ++x) {
-                            var key = pair_key(arr[y][x]);
-                            var offset = 4 * (y * arr[0].length + x);
-                            cluster_arr.data[offset + 3] = 255;
-                            var color;
-                            if (key === pair_key([background, background])) {
-                                line.push(" ");
-                                color = background;
-                            } else if (answer[key] !== undefined) {
-                                line.push(answer[key]);
-                                color = refer[key];
-                            } else {
-                                line.push("?");
-                                color = [128, 128, 128];
-                            }
-                            colors.push(color);
-                            cluster_arr.data[offset + 0] = color[0];
-                            cluster_arr.data[offset + 1] = color[1];
-                            cluster_arr.data[offset + 2] = color[2];
-                        }
-                        for (var x = 0; x < line.join("").trimEnd().length; ++x) {
-                            var span = document.createElement("span");
-                            span.innerText = line[x];
-                            span.style.color = `rgb(${colors[x].join(", ")})`;
-                            span.dataset.pair = pair_key(arr[y][x]);
-                            span.onclick = generate_drawer;
-                            result.appendChild(span);
-                        }
-                        result.appendChild(document.createElement("br"));
+                    var target_key = this.dataset.pair;
+                    if (target_key === pair_key([background, background])) {
+                        return;
                     }
-                    context.putImageData(cluster_arr, 0, 0);
-                    result_image.src = canvas.toDataURL();
-                };
+                    chosen_colors.forEach(color => {
+                        var test_list = gen_test_list(...color);
+                        test_list.forEach(entry => {
+                            if (entry[0] === target_key) {
+                                var div = document.createElement("div");
+                                div.classList.add("drawer_entry");
+                                div.innerText = entry[1];
+                                div.style.color = `rgb(${color.join(", ")})`;
+                                div.dataset.text = entry[1];
+                                div.dataset.color = color_key(color);
+                                div.style.backgroundColor = `rgb(${background.join(", ")})`;
+                                div.onclick = replace_drawer;
+                                drawer.appendChild(div);
+                            }
+                        })
+                    })
+                }
+
+                var canvas = document.createElement('canvas');
+                canvas.height = arr.length;
+                canvas.width = arr[0].length;
+                var context = canvas.getContext('2d');
+                var cluster_arr = context.getImageData(0, 0, canvas.width, canvas.height);
+                drawer.innerText = "";
+                result.innerText = "";
+                result.style.backgroundColor = `rgb(${background.join(", ")})`;
+                for (var y = 0; y < arr.length; ++y) {
+                    var line = [];
+                    var colors = [];
+                    for (var x = 0; x < arr[0].length; ++x) {
+                        var key = pair_key(arr[y][x]);
+                        var offset = 4 * (y * arr[0].length + x);
+                        cluster_arr.data[offset + 3] = 255;
+                        var color;
+                        if (key === pair_key([background, background])) {
+                            line.push(" ");
+                            color = background;
+                        } else if (answer[key] !== undefined) {
+                            line.push(answer[key]);
+                            color = refer[key];
+                        } else {
+                            line.push("?");
+                            color = [128, 128, 128];
+                        }
+                        colors.push(color);
+                        cluster_arr.data[offset + 0] = color[0];
+                        cluster_arr.data[offset + 1] = color[1];
+                        cluster_arr.data[offset + 2] = color[2];
+                    }
+                    for (var x = 0; x < line.join("").trimEnd().length; ++x) {
+                        var span = document.createElement("span");
+                        span.innerText = line[x];
+                        span.style.color = `rgb(${colors[x].join(", ")})`;
+                        span.dataset.pair = pair_key(arr[y][x]);
+                        span.onclick = generate_drawer;
+                        result.appendChild(span);
+                    }
+                    result.appendChild(document.createElement("br"));
+                }
+                context.putImageData(cluster_arr, 0, 0);
+                result_image.src = canvas.toDataURL();
             }
             function getFile(dt) {
                   if (dt.items) {
@@ -678,21 +693,21 @@
                     }
                 }
             }
-            dragarea.ondrop = function(ev) {
+            dragarea.ondrop = async function(ev) {
                 ev.preventDefault();
                 dragarea.classList.remove("active");
                 var file = getFile(ev.dataTransfer);
                 if (file === null) {
                     alert("No file selected!");
                 } else {
-                    readFile(file);
+                    await readFile(file);
                 }
             }
-            drag_input.onchange = function() {
+            drag_input.onchange = async function() {
                 if (drag_input.files.length == 0) {
                     alert("No file selected!");
                 } else {
-                    readFile(drag_input.files[0]);
+                    await readFile(drag_input.files[0]);
                 };
             }
             dragarea.ondragover = function(ev) {
